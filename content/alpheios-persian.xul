@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE window SYSTEM "chrome://alpheios-persian/locale/alpheios-persian.dtd">
+
+<overlay id="alpheios-persian-overlay" 
+         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+    <script type="application/x-javascript" src="chrome://alpheios-persian/content/alpheios-persian-langtool.js" />
+</overlay>

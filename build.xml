@@ -1,0 +1,305 @@
+<?xml version="1.0" ?>
+
+<project name="alpheios-persian" default="package" basedir=".">
+	<property name="src.dir" value="." />
+	<property name="dist.dir" value="dist" />
+	<property name="app.name" value="alpheios-persian" />
+	<property name="ff.test.dir" value="/test" />
+	<property name="ext.test.dir" 
+	          value="${ff.test.dir}/extensions/${app.name}" />
+	<property name="deploy.dir"
+              value="/Program Files/Apache Group/Apache2/htdocs/alpheios" />
+	<property name="release.id" value="1.0alpha1" />
+	<property name="svnant.lib.dir" value="/svnant-1.0.0"/>	
+	<property name="extras" value="sal,lan"/>
+	
+	<taskdef resource="net/sf/antcontrib/antlib.xml"/>
+	
+	<path id="project.classpath">
+	        <fileset dir="${svnant.lib.dir}" includes="**/*.jar"/>
+	</path>
+	
+	<!-- timestamp for this build -->
+	<tstamp>
+	   <format property="build.time" pattern="yyyyMMddHHmmss"/>
+       <format property="build.date" pattern="yyyyMMdd"/>
+    </tstamp>
+
+    <!-- svnAnt library -->
+	<taskdef resource="svntask.properties" classpathref="project.classpath"/>
+
+	<!-- append 'dev' to package name for dev distribution -->
+    <condition property="package" value="${app.name}-latest-dev.xpi">
+        <isset property="devdist" />
+    </condition>
+    
+    <!-- append 'amo' to package name for amo distribution -->
+    <condition property="package" value="${app.name}-latest-amo.xpi">
+           <isset property="amodist" />
+    </condition>
+
+    <!-- regular release distribution -->
+    <condition property="package" value="${app.name}-latest.xpi">
+        <and>
+            <not><isset property="amodist"/></not>
+            <not><isset property="devdist" /></not>
+        </and>
+    </condition>
+
+    <!-- tweak release id per distribution type -->
+    <condition property="dist.release.id" value="${release.id}d">
+            <isset property="devdist"/>
+    </condition>
+    
+    <condition property="dist.release.id" value="${release.id}">
+        <not>
+           <isset property="devdist"/>
+        </not>
+    </condition>
+
+	<condition property="ff.present">
+		<and>
+			<isset property="ff.test.dir" />
+			<available file="${ff.test.dir}" type="dir" />
+		</and>
+	</condition>
+	
+	<condition property="deploy.ok">
+		<and>
+		    <available file="${deploy.dir}" type="dir" />
+	    </and>
+	</condition>
+
+	<!-- match pattern for BuildId in the install.rdf -->
+	<regexp id="build_id_match" pattern="(\$BuildId: )\d+[^\$]+"/>
+
+	<!-- match pattern for version element in the install.rdf -->
+	<regexp id="version_match" 
+		    pattern="(\u003cem:version\u003e).*(\u003c/em:version\u003e)"/>
+	
+	<!-- test.ext copies a package to a directory for testing -->
+	<target name="test.ext" depends="package" if="ff.present">
+		<unzip src="${dist.dir}/${package}" dest="${ext.test.dir}" overwrite="true" />
+		<unzip src="${ext.test.dir}/chrome/${app.name}.jar" dest="${ext.test.dir}/chrome" overwrite="true"/>
+		<copy file="${src.dir}/chrome.manifest.dev" tofile="${ext.test.dir}/chrome.manifest" overwrite="true" />
+	</target>
+
+	<!-- deploy creates a distribution packages and copies it to the
+	     deployment directory 
+	-->
+	<target name="deploy" depends="dist" if="deploy.ok"> 
+		<copy file="${dist.dir}/${package}"
+			  todir="${deploy.dir}" overwrite="true" />
+	</target>
+
+	<!-- dist is the target for a deployable build
+	     it depends upon inc-build-id to increment the build id
+	     and SVN revision # of the install.rdf prior to packaging
+	-->
+	<target name="dist" depends="clean,get-extras,inc-build-id,package">
+		
+		<!-- commit the version.properties
+		     into SVN to increment its SVN revision and 
+		     update the build id so that future builds get a
+		     new svn revision/build id combo. Also include
+		     the newly created package.  
+		-->
+		<replaceregexp file="${src.dir}/install.rdf">
+			<regexp refid="build_id_match"/>
+			<substitution expression="\1${buildNum}+"/>
+	    </replaceregexp>
+		
+		<svn>
+			<commit message="post-build-auto-increment">
+			<fileset dir="${basedir}">					
+					<include name="version.properties"/>
+					<include name="${dist.dir}/${package}"/>
+				</fileset>
+		    </commit>
+	                
+	     </svn>
+	</target>
+    
+	<!-- package creates a deployable .xpi package -->
+	<target name="package" depends="chrome">
+		<zip destfile="${dist.dir}/${package}">
+			<zipfileset file="${dist.dir}/${app.name}.jar" prefix="chrome"/>
+			<fileset dir="${src.dir}">
+				<include name="chrome.manifest" />
+				<include name="install.rdf" />
+				<include name="mhttpd.conf" />
+				<include name="modules/**" />
+				<include name="defaults/**" />
+				<include name="**/platform/**" />
+				<include name="**/alph-aramorph/**" />
+				<exclude name="**/.*" />
+			</fileset>
+		</zip>
+	</target>
+	
+	<!-- chrome creates the jar file containing the chrome files --> 
+    <target name="chrome" depends="check-amo-build,check-dev-build,get-build-id">
+        <mkdir dir="${dist.dir}" />
+    	<copy todir="${src.dir}/content/dictionaries">
+    	   <fileset dir="${src.dir}/dicttmp">
+               <include name="**/*.dat/"/>
+    	   </fileset>
+    	</copy>
+	    <zip destfile="${dist.dir}/${app.name}.jar">
+	        <fileset dir="${src.dir}">
+	        	<include name="content/**" />
+	        	<include name="locale/**" />
+	            <include name="skin/**" />
+	            <exclude name="**/.*" />
+	            <exclude name="**/CVS/**" />
+	         </fileset>
+	    </zip>
+	</target>
+	    
+
+	<!-- get the extra external files from SVN -->
+	<target name="get-extras">
+		<property file="extras.properties"/>
+		<for list="${extras}" param="type">
+		  <sequential>
+		  	<svn>
+		  		<export 
+		         srcUrl="${@{type}.repository}"
+		  	     revision="${@type}.revision}"
+		  	     destPath="${@{type}.target_dir}"
+		  		 force="true"/>
+		    </svn>
+		  </sequential>
+		</for>
+	</target>
+			
+	<!-- increment the official build id -->
+    <target name="inc-build-id" depends="update-version">
+        
+        <property file="version.properties"/>
+        <echo>SVN Revision: ${svn.revision}</echo>
+        <echo>BuildId: ${buildNum}</echo>
+        <echo>BuildDate: ${buildDate}</echo>
+        <replaceregexp file="${src.dir}/install.rdf">
+            <regexp refid="version_match"/>
+            <substitution                
+                expression="\1${dist.release.id}.${svn.revision}.${buildDate}\2" />
+        </replaceregexp>
+        <replaceregexp file="${src.dir}/install.rdf">
+            <regexp refid="build_id_match"/>
+    	    <substitution expression="\1${buildNum}"/>
+        </replaceregexp>
+        <svn>
+	        <commit message="pre-build-auto-increment" 
+	                file="${basedir}/version.properties"/>
+	    </svn>
+        <svn>
+    	    <status path="${basedir}/version.properties" 
+    	  	       revisionProperty="svn.revision" />
+    	</svn>
+    	<echo>Updating version properties to New SVN Revision: ${svn.revision}</echo>
+    	                
+        <replaceregexp file="version.properties"
+    	    match="srcId=\d+"
+    	    replace="srcId=${svn.revision}" />
+    </target>
+	    
+	<!-- update-version updates the build id and 
+	     related info in the version.properties file to make it available
+	     for inclusion in the install.rdf
+    -->	
+	<target name="update-version">
+		<svn>
+		   <status path="${basedir}/version.properties" revisionProperty="svn.revision" />
+		</svn>
+		<echo>Updating version.properties with SVN Revision: ${svn.revision}</echo>
+		        
+		<propertyfile
+		   file="version.properties" comment="Build version info">
+		   <entry key="releaseId" type="string" value="${dist.release.id}"/>
+		   <entry key="buildDate" type="date" value="now" pattern="yyyyMMdd"/>
+		   <entry key="buildNum" type="int" operation="+" default="0" />
+		   <entry key="srcId" type="string" value="${svn.revision}" />
+		</propertyfile>      
+    </target>
+
+	<!-- get-build-id makes sure the install.rdf has the current build 
+	     and svn revision info prior to packaging 
+	-->
+	<target name="get-build-id" depends="update-version">
+		<property file="version.properties"/>
+		<echo>SVN Revision: ${svn.revision}</echo>
+		<echo>BuildId: ${buildNum}</echo>
+		<echo>BuildDate: ${buildDate}</echo>
+		<replaceregexp file="${src.dir}/install.rdf">
+		    <regexp refid="version_match"/>
+		    <substitution 
+	             expression="\1${dist.release.id}.${svn.revision}.${buildDate}\2" />
+		</replaceregexp>
+		<replaceregexp file="${src.dir}/install.rdf">
+			<regexp refid="build_id_match"/>
+			<substitution expression="\1${buildNum}"/>
+	    </replaceregexp>
+	</target>
+
+	<!-- tweaks for dev build -->
+    <target name="check-dev-build" if="devdist">
+    	<echo>Executing Dev Build substitutions</echo>
+        <!-- separate update url for dev distribution -->
+        <replaceregexp file="${src.dir}/install.rdf">
+              <regexp pattern='(\u003cem:updateURL\u003e).*?(\u003c\/em:updateURL\u003e)'/>
+              <substitution expression="\1http://alpheios.net/xpi-updates/dev/update.rdf\2"/>
+        </replaceregexp>
+    </target>
+    
+    <!-- for the amo build, clear the update url and key -->
+    <target name="check-amo-build" if="amodist">
+       <echo>Executing AMO Build substitutions</echo>
+       <replaceregexp file="${src.dir}/install.rdf">
+            <regexp pattern='\u003cem:updateKey\u003e.*?\u003c\/em:updateKey\u003e'/>
+            <substitution expression=""/>
+        </replaceregexp>
+        <replaceregexp file="${src.dir}/install.rdf">
+           <regexp pattern='\u003cem:updateURL\u003e.*?\u003c\/em:updateURL\u003e'/>
+           <substitution expression=""/>
+       </replaceregexp>
+    </target>
+	
+    <!-- clean deletes the package files from the distribution directory -->
+	<target name="clean" depends="clean.extras">
+		<delete file="${dist.dir}/${app.name}.jar"/>
+		<delete file="${dist.dir}/${package}"/>
+	</target>
+
+	<!-- clean the extra files from their target directories -->
+	<target name="clean.extras">
+		<property file="extras.properties"/>
+        <for list="${extras}" param="type">
+          <sequential>
+            <condition property="@{type}.delete.ok">
+             <not>
+                <istrue value="${@{type}.target_dir_shared}"/>
+             </not>
+            </condition>
+            <antcall target="clean.extra.dir">
+                <param name="type" value="@{type}"/>
+                <param name="dir" value="${@{type}.target_dir}"/>
+            </antcall>
+          </sequential>
+        </for>
+		<mkdir dir="${src.dir}/dicttmp"/>
+	</target>
+	
+	<!-- clean.ff deletes the exploded package files 
+	     from the testing directory 
+	-->
+	<target name="clean.ff"  if="ff.present">
+	    <delete dir="${ext.test.dir}" failonerror="false" />
+	</target>
+
+    <target name="clean.extra.dir" if="${type}.delete.ok">
+        <echo message="cleaning ${dir}"/>
+        <delete dir="${dir}" failonerror="true"/>
+	</target>  
+
+</project>

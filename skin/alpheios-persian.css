@@ -1,0 +1,10 @@
+/* unhighlight the grammar pofs conj links for now */
+.alph-conj, .alph-pofs {
+    color: #0E2233;
+    cursor: default;
+}
+
+/* direction for alph-term */
+.alph-term {
+    direction:rtl;
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- $Revision: 1785 $-->
+<!-- $BuildId: 349$-->
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+		xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+
+	<Description about="urn:mozilla:install-manifest">
+		<em:name>Alpheios Persian Tools</em:name>
+		<em:version>1.0alpha1.4014.20111229</em:version>
+		<em:description></em:description>
+		<em:creator>The Alpheios Project, Ltd.</em:creator>
+		<em:id>persian@alpheios.net</em:id>
+		<em:unpack>true</em:unpack>
+		
+		<em:targetApplication>
+			<!-- Firefox -->
+			<Description>
+				<em:id>{29142998-4a6b-11e5-885d-feff819cdc9f}</em:id>
+				<em:minVersion>3.0</em:minVersion>
+				<em:maxVersion>40.*</em:maxVersion>                
+			</Description>
+		</em:targetApplication>
+				
+		<em:targetPlatform>WINNT</em:targetPlatform>
+		<em:targetPlatform>Linux</em:targetPlatform>
+		<em:targetPlatform>Darwin</em:targetPlatform>
+		
+		<em:iconURL>chrome://alpheios/skin/icons/alpheios_32.ico</em:iconURL>
+		<em:homepageURL>http://alpheios.net</em:homepageURL>
+		<em:optionsURL>chrome://alpheios/content/alpheios-prefs.xul</em:optionsURL>
+		<em:updateURL>http://alpheios.net/xpi-updates/update.rdf</em:updateURL>
+		<em:updateKey>MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDOd5Mjthp4ZkEF0g6sF6fHbUb92PJTSSPxjjdsuDOXG9dUTVwIDjW183lTZawP7+4E8PmUeqVl5GCjKRCAhAXmSV+X/IYgSuiTOTjuXUJ/ylA9EGSo2dHVeGJ834XIKe5NK7NL08EFxst58vCASTViuMv5GpeIYtPvbj7PyXJ82QIDAQAB</em:updateKey>
+        <em:requires>
+            <Description>
+                <!-- Alpheios -->
+                <em:id>{4816253c-3208-49d8-9557-0745a5508299}</em:id>
+            	<em:minVersion>1.0beta2.2970</em:minVersion>
+                <em:maxVersion>1.0beta*.*</em:maxVersion>
+            </Description>
+        </em:requires>
+	</Description>
+</RDF>

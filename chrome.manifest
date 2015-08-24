@@ -1,0 +1,9 @@
+content alpheios-persian jar:chrome/alpheios-persian.jar!/content/
+content alpheios-persian jar:chrome/alpheios-persian.jar!/content/ contentaccessible=yes
+locale	alpheios-persian	en-US		jar:chrome/alpheios-persian.jar!/locale/en-US/
+skin	alpheios-persian	classic/1.0	jar:chrome/alpheios-persian.jar!/skin/
+
+overlay chrome://alpheios/content/alpheios-overlay.xul    chrome://alpheios-persian/content/alpheios-persian.xul
+style   chrome://global/content/customizeToolbar.xul    chrome://alpheios-persian/skin/alpheios-persian.css
+
+resource alpheios-persian modules/

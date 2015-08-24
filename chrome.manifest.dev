@@ -1,0 +1,9 @@
+content alpheios-persian chrome/content/
+content alpheios-persian chrome/content/ contentaccessible=yes
+locale	alpheios-persian	en-US		chrome/locale/en-US/
+skin	alpheios-persian	classic/1.0	chrome/skin/
+
+overlay chrome://alpheios/content/alpheios-overlay.xul    chrome://alpheios-persian/content/alpheios-persian.xul
+style	chrome://global/content/customizeToolbar.xul	chrome://alpheios-persian/skin/alpheios-persian.css
+
+resource alpheios-persian modules/
