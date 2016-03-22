@@ -10,8 +10,8 @@
 	<property name="deploy.dir"
               value="/Program Files/Apache Group/Apache2/htdocs/alpheios" />
 	<property name="release.id" value="1.0alpha1" />
-	<property name="svnant.lib.dir" value="/svnant-1.0.0"/>	
-	<property name="extras" value="sal,lan"/>
+	<property name="svnant.lib.dir" value="../../svnant-1.0.0"/>	
+	<property name="extras" value=""/>
 	
 	<taskdef resource="net/sf/antcontrib/antlib.xml"/>
 	
@@ -208,7 +208,7 @@
 	     related info in the version.properties file to make it available
 	     for inclusion in the install.rdf
     -->	
-	<target name="update-version">
+	<target name="update-version" if="! devdist">
 		<svn>
 		   <status path="${basedir}/version.properties" revisionProperty="svn.revision" />
 		</svn>
