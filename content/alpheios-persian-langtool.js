@@ -44,6 +44,62 @@ Alph.LanguageTool_Persian.prototype = new Alph.LanguageTool();
 
 
 /**
+ * Overidde default lexicon lookup to use xhr directly
+ * the old version of jQuery uses a header string for xml
+ * content that looks like "application/xml, text/xml, star/star 
+ * and newer service code (such as the flask restful implementation
+ * used for the persian morphology service) just interprets that
+ * as asking for JSON. We need to explicitly set that we're requesting
+ * application/xml only to make sure we get what we want
+ */
+Alph.LanguageTool_Persian.prototype.setLexiconLookup = function()
+{
+    var lexicon_method =
+        Alph.BrowserUtils.getPref("methods.lexicon",this.d_sourceLanguage);
+
+    if (lexicon_method == 'webservice')
+    {
+
+        /**
+         * @ignore
+         */
+        this.lexiconLookup = function(a_alphtarget,a_onsuccess,a_onerror)
+        {   
+            this.s_logger.info("Query for word: " + a_alphtarget.getWord()); 
+            
+            var url = Alph.BrowserUtils.getPref("url.lexicon",this.d_sourceLanguage);
+            // override local daemon per main prefs
+            if (Alph.Util.isLocalUrl(url) && Alph.BrowserUtils.getPref("morphservice.remote"))
+            {
+                   url = Alph.BrowserUtils.getPref("morphservice.remote.url");
+             
+            }
+            url = url + Alph.BrowserUtils.getPref("url.lexicon.request",this.d_sourceLanguage);
+            url = url.replace(/\<WORD\>/,
+                                  encodeURIComponent(a_alphtarget.getWord()));
+            // TODO add support for the context in the lexicon url
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+            xhr.onerror = a_onerror;
+            xhr.setRequestHeader("Accept", "application/xml")
+            xhr.onreadystatechange = function() {
+                if (xhr.status === 500 || xhr.status === 401 || xhr.status === 403 || xhr.status === 404 || xhr.status === 400) {
+                    a_onerror(xhr.status, xhr.statusText);
+                } else if (xhr.readyState === 4) {
+                    // the basic libraries used html as the contentType, and they expect back plain text
+                    a_onsuccess(xhr.responseText, xhr.status)
+                }
+                      
+            };
+            xhr.send();
+
+        };
+    }
+}
+
+
+/**
  * Persian-specific implementation of {@link Alph.LanguageTool#postTransform}.
  * @param {Node} a_node the node containing the lookup results
  */
@@ -81,31 +137,6 @@ Alph.LanguageTool_Persian.prototype.observePrefChange = function(a_name,a_value)
 }
 
 /**
- * Persian-specific startup method in the derived instance which
- * xslt for stripping the unicode. Called by the derived instance
- * keyed by the preference setting 'extensions.alpheios.greek.methods.startup'.
- * @returns true if successful, otherwise false
- * @type boolean
- */
-Alph.LanguageTool_Persian.prototype.loadStripper = function()
-{
-    try
-    {
-        this.d_stripper =
-            Alph.BrowserUtils.getXsltProcessor('alpheios-ara-unistrip.xsl');
-        this.d_stripperList =
-            Alph.BrowserUtils.getPref('stripper.list',this.d_sourceLanguage).split(',');
-    }
-    catch (ex)
-    {
-        alert("error loading xslt alpheios-ara-unistrip.xsl: " + ex);
-        return false;
-    }
-
-    return true;
-}
-
-/**
  * loads the Persian-specific converter object
  * @see Alph.LanguageTool#loadConverter
  */
@@ -130,9 +161,7 @@ Alph.LanguageTool_Persian.prototype.getLemmaId = function(a_lemmaKey)
         var lemma_id =
             Alph.LanguageTool_Persian.lookupLemma(a_lemmaKey,
                                                  null,
-                                                 this.d_idsFile[i],
-                                                 this.d_stripper,
-                                                 this.d_stripperList)[1];
+                                                 this.d_idsFile[i])[1];
         if (lemma_id)
             return Array(lemma_id, this.d_fullLexCode[i]);
     }
@@ -151,49 +180,20 @@ Alph.LanguageTool_Persian.prototype.getLemmaId = function(a_lemmaKey)
  * @param {String} a_lemma original lemma
  * @param {String} a_key key to look up or null
  * @param {Alph.Datafile} a_datafile datafile to search with key
- * @param a_stripper transform to remove diacritics, etc.
- * @param a_stripperList list of preferred transforms
  * @returns {Array} (key, data)
  * @type String
  */
 Alph.LanguageTool_Persian.lookupLemma =
-function(a_lemma, a_key, a_datafile, a_stripper, a_stripperList)
+function(a_lemma, a_key, a_datafile)
 {
     if (!a_datafile)
         return Array(null, null);
 
     // try key or lemma first
-    // strip trailing underscore and digits from lemma
-    var lemma = a_lemma.replace(/[_\u0640][0-9]+$/,"");
+    var lemma = a_lemma;
     var key = (a_key ? a_key : lemma);
     var data = a_datafile.findData(key);
     var x = null;
-    var stripperList = a_stripperList;
-    //var stripperList = ["tanwin", "hamza", "harakat", "shadda", "sukun", "alef"];
-
-    // if not found, try various drops
-    if (!data)
-    {
-        for (i in stripperList)
-        {
-            a_stripper.setParameter(null, "e_in", key);
-            a_stripper.setParameter(null, "e_toDrop", stripperList[i]);
-            if (!x)
-                x = (new DOMParser()).parseFromString("<dummy/>", "text/xml");
-            var key2 = a_stripper.transformToDocument(x)
-                                 .documentElement.textContent;            
-                                             
-            // if not a new key, don't bother trying to find it
-            if (key2 == key)
-                continue;
-            
-            // if found, stop looking
-            key = key2;
-            data = a_datafile.findData(key);
-            if (data)
-                break;
-        }
-    }
 
     // if data found
     if (data)
