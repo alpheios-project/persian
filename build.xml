@@ -11,13 +11,13 @@
               value="/Program Files/Apache Group/Apache2/htdocs/alpheios" />
 	<property name="release.id" value="1.0alpha1" />
 	<property name="svnant.lib.dir" value="../../svnant-1.0.0"/>	
-	<property name="extras" value=""/>
+	<property name="extras" value="stg"/>
 	
-	<taskdef resource="net/sf/antcontrib/antlib.xml"/>
 	
 	<path id="project.classpath">
 	        <fileset dir="${svnant.lib.dir}" includes="**/*.jar"/>
 	</path>
+	<taskdef resource="net/sf/antcontrib/antlib.xml" classpath="/usr/share/java/ant-contrib-1.0b3.jar"/>
 	
 	<!-- timestamp for this build -->
 	<tstamp>

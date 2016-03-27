@@ -100,27 +100,6 @@ Alph.LanguageTool_Persian.prototype.setLexiconLookup = function()
 
 
 /**
- * Persian-specific implementation of {@link Alph.LanguageTool#postTransform}.
- * @param {Node} a_node the node containing the lookup results
- */
-Alph.LanguageTool_Persian.prototype.postTransform = function(a_node)
-{
-    var copyright = this.getString('popup.credits');
-    Alph.$('#alph-morph-credits',a_node).html(copyright);
-    var morphflags = Alph.$('.alph-morphflags',a_node);
-    if (morphflags.length > 0 && 
-        Alph.BrowserUtils.getPref('showmorphflags',this.d_sourceLanguage)) 
-    {
-	morphflags.each(
-            function() {
-                var ctx = Alph.$(this).attr('context');
-                Alph.$(this).html(ctx);
-            }
-        );
-    }
-}
-
-/**
  * Persian-specific implementation of {@link Alph.LanguageTool#observePrefChange}
  *
  * calls loadLexIds if the default full dictionary changed
@@ -145,6 +124,139 @@ Alph.LanguageTool_Persian.prototype.loadConverter = function()
     this.d_converter = new Alph.ConvertPersian();  
 };
 
+
+/**
+ * Persian-specific startup method in the derived instance which
+ * loads the dictionary files. Called by the derived instance
+ * keyed by the preference setting 'extensions.alpheios.persian.methods.startup'.
+ * @returns true if successful, otherwise false
+ * @type boolean
+ */
+Alph.LanguageTool_Persian.prototype.loadShortDefs = function()
+{
+    this.s_logger.info("Loading Short Defs");
+    this.d_defsFile = Array();
+    this.d_shortLexCode =
+            Alph.BrowserUtils.getPref("dictionaries.short", this.d_sourceLanguage).split(',');
+
+    for (var i = 0; i < this.d_shortLexCode.length; ++i)
+    {
+        // load the local short definitions dictionary data file
+        try
+        {
+            this.d_defsFile[i] =
+                new Alph.Datafile(
+                        Alph.BrowserUtils.getContentUrl(this.d_sourceLanguage) + '/dictionaries/' +
+                        this.d_shortLexCode[i] +
+                        "/per-" +
+                        this.d_shortLexCode[i] +
+                        "-defs.dat",
+                        "UTF-8");
+            this.s_logger.info(
+                "Loaded xxxx Persian defs for " +
+                this.d_shortLexCode[i] +
+                "[" +
+                this.d_defsFile[i].getData().length +
+                " bytes]");
+
+        }
+        catch (ex)
+        {
+            alert("error loading definitions: " + ex);
+            return false;
+        }
+    }
+    return true;
+};
+
+/**
+ * Persian-specific implementation of {@link Alph.LanguageTool#postTransform}.
+ * Looks up the lemma in the file of short meanings
+ * @param {Node} a_node the node containing the lookup results
+ */
+Alph.LanguageTool_Persian.prototype.postTransform = function(a_node)
+{
+    var lang_obj = this;
+    var defs = this.d_defsFile;
+    var lex = this.d_shortLexCode;
+    Alph.$(".alph-entry", a_node).each(
+        function()
+        {
+            // get lemma
+            var lemmaKey = Alph.$(".alph-dict", this).attr("lemma-key");
+            var defReturn = Array(null, null);
+            var i;
+
+            // for each lexicon
+            for (i = 0; i < lex.length; ++i)
+            {
+                // get data from defs file
+                var defReturn =
+                    Alph.LanguageTool_Persian.lookupLemma(lemmaKey,
+                                                           null,
+                                                           defs[i]);
+                if (defReturn[1])
+                    break;
+            }
+
+            // if we found definition
+            if (defReturn[1])
+            {
+
+                // build meaning element
+                var meanElt = '<div class="alph-mean">' +
+                                defReturn[1] +
+                              '</div>';
+
+                // insert meaning into document
+                lang_obj.s_logger.debug("adding " + meanElt);
+                Alph.$(".alph-dict", this).after(meanElt);
+
+                // build dictionary source element
+                var srcElt = '<div class="alph-dict-source">' +
+                    lang_obj.getString('dict.' + lex[i] + '.copyright') +
+                    '</div>';
+                Alph.$(".alph-dict", this).append(srcElt);
+
+                // set lemma attributes
+                lang_obj.s_logger.debug('adding @lemma-lang="per"');
+                lang_obj.s_logger.debug('adding @lemma-key="' + defReturn[0] + '"');
+                lang_obj.s_logger.debug('adding @lemma-lex="' + lex[i] + '"');
+                Alph.$(".alph-dict", this).attr("lemma-lang", "per");
+                Alph.$(".alph-dict", this).attr("lemma-key", defReturn[0]);
+                Alph.$(".alph-dict", this).attr("lemma-lex", lex[i]);
+            }
+            else
+            {
+                lang_obj.s_logger.warn("meaning for " +
+                              lemmaKey +
+                              " not found [" + lex.join() + "]");
+            }
+        }
+    );
+    var copyright = this.getString('popup.credits');
+    Alph.$('#alph-morph-credits',a_node).html(copyright);
+}
+
+/**
+ * Persian-specific implementation of {@link Alph.LanguageTool#observePrefChange}.
+ *
+ * calls loadShortDefs and loadLexIds if the dictionary list changed
+ * @param {String} a_name the name of the preference which changed
+ * @param {Object} a_value the new value of the preference
+ */
+Alph.LanguageTool_Persian.prototype.observePrefChange = function(a_name,a_value)
+{
+    if (a_name.indexOf('dictionaries.short') != -1)
+        this.loadShortDefs();
+
+    if (a_name.indexOf('dictionaries.full') != -1)
+    {
+        this.loadLexIds();
+        this.lexiconSetup();
+    }
+}
+
 /**
  * Persian-specific implementation of {@link Alph.LanguageTool#getLemmaId}.
  *
@@ -154,16 +266,19 @@ Alph.LanguageTool_Persian.prototype.loadConverter = function()
  */
 Alph.LanguageTool_Persian.prototype.getLemmaId = function(a_lemmaKey)
 {
+    this.s_logger.info("in getLemmaId");
     // for each lexicon
     for (var i = 0; i < this.d_fullLexCode.length; ++i)
     {
+        this.s_logger.warn("lookup " + a_lemmaKey );
         // get data from ids file
         var lemma_id =
             Alph.LanguageTool_Persian.lookupLemma(a_lemmaKey,
-                                                 null,
-                                                 this.d_idsFile[i])[1];
-        if (lemma_id)
+                                                a_lemmaKey,
+                                                this.d_idsFile[i])[1];
+        if (lemma_id) {
             return Array(lemma_id, this.d_fullLexCode[i]);
+        }
     }
 
     this.s_logger.warn("id for " +
@@ -173,6 +288,7 @@ Alph.LanguageTool_Persian.prototype.getLemmaId = function(a_lemmaKey)
 
     return Array(null, null);
 }
+ 
 
 /**
  * Lookup lemma
@@ -189,40 +305,78 @@ function(a_lemma, a_key, a_datafile)
     if (!a_datafile)
         return Array(null, null);
 
-    // try key or lemma first
-    var lemma = a_lemma;
-    var key = (a_key ? a_key : lemma);
-    var data = a_datafile.findData(key);
+    var key;
     var x = null;
+    if (!a_key)
+    {
+        // if no key given, use the lemma
+        key = a_lemma
+    }
+    else
+    {
+        // use supplied key
+        key = a_key;
+    }
+
+    // count trailing digits
+    var toRemove = 0;
+    for (; toRemove <= key.length; ++toRemove)
+    {
+        // if not a digit, done
+        var c = key.substr(key.length - (toRemove + 1), 1);
+        if ((c < "0") || ("9" < c))
+            break;
+    }
+
+    // try to find data
+    var data = a_datafile.findData(key);
+    if (!data && (toRemove > 0))
+    {
+        // if not found, remove trailing digits and retry
+        key = key.substr(0, key.length - toRemove);
+        data = a_datafile.findData(key);
+  }
 
     // if data found
     if (data)
     {
-        var ids = "";
-        var startPos = 0;
+        var sep = a_datafile.getSeparator();
+        var specialFlag = a_datafile.getSpecialHandlingFlag();
 
-        // while more data to look at
-        while (startPos < data.length)
+        // find start and end of definition
+        var startText = data.indexOf(sep, 0) + 1;
+        var endText = data.indexOf('\n', startText);
+        if (data.charAt(endText - 1) == '\r')
+            endText--;
+
+        // if special case
+        if (((endText - startText) == 1) &&
+            (data.charAt(startText) == specialFlag))
         {
-            // find start and end of definition
-            var startText = data.indexOf(a_datafile.getSeparator(),
-                                         startPos) + 1;
-            var endText = data.indexOf('\n', startText);
-            startPos = endText + 1;
-            if (data.charAt(endText - 1) == '\r')
-                endText--;
+            // retry using flag plus lemma without caps removed
+            key = specialFlag + a_lemma;
+            data = a_datafile.findData(key);
+            if (!data)
+            {
+                // if not found, remove trailing digits and retry
+                key = key.substr(0, key.length - toRemove);
+                data = a_datafile.findData(key);
+            }
 
-            // add to list of ids
-            if (ids.length > 0)
-                ids += ",";
-            ids += data.substr(startText, endText - startText);
+            if (data)
+            {
+                startText = data.indexOf(sep, 0) + 1;
+                endText = data.indexOf('\n', startText);
+                if (data.charAt(endText - 1) == '\r')
+                    endText--;
+            }
         }
-
         // real data found
-        return Array(key, ids);
+        if (data)
+            return Array(key, data.substr(startText, endText - startText));
     }
 
     // nothing found
-    return Array(lemma, null);
+    return Array(key, null);
 }
 
