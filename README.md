@@ -34,7 +34,7 @@ The plugin requires an active internet connection to function as currently confi
 
 * The Alpheios Basic Libraries source code can be found at https://sourceforge.net/p/alpheios/code/HEAD/tree/basic-reader/ . Other language extensions, which can be helpful for reference, can be found at https://sourceforge.net/p/alpheios/code/HEAD/tree/language-extensions/.  For more information on the Alpheios code, see http://alpheios.net/content/alpheios-firefox-plugins . For a general user-guide to Alpheios, see http://alpheios.net/content/user-guide.
 
-## Current Status (as of 2-April-2016) and Next Steps
+## Current Status (as of 2-April-2016)
 
 The plugin works successfully for some words and lemmas, but all of the components need additional work.  The basic sequence of steps are involved in a word lookup.
 
