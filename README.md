@@ -67,7 +67,7 @@ In our initial tests, we have experienced all three problems.
     1. `ant get-extras` will retrieve the dictionary files from sourceforge and put them in the correct location for the plugin
     2. `ant build` will build a development copy of the xpi
 
-3. Building a production version of the xpi, i.e. that could be submitted to Mozilla for signing and release, will require additional development work in the build.xml because it is coded for interaction with svn and not git, for tasks related to setting the version of the build, etc. It may not be worthwhile investing this effort at this time, due to the issues with Firefox 45+ and Alpheios.
+3. Building a production version of the xpi, i.e. that could be submitted to Mozilla for signing and release, will require additional development work in the build.xml because it is coded for interaction with svn and not git, for tasks related to setting the version of the build, etc. It may not be worthwhile investing this effort at this time, due to the issues with Firefox 45+ and Alpheios.  (An alternative strategy, using a vagrant box with a frozen copy of Firefox and the plugins installed is being pursued. This would not require official release of the Persian plugin on the Mozilla Add-Ons site).
 
  
 
